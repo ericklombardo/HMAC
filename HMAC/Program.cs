@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using static System.Console;
 
 namespace HMAC
 {
@@ -10,6 +7,12 @@ namespace HMAC
     {
         static void Main(string[] args)
         {
+            var token = SecurityManager.GenerateToken("elnunez", "asas@$$%89", DateTime.UtcNow.Ticks);
+
+            WriteLine(token);
+            ReadKey();
+            WriteLine($"Is valid token: {SecurityManager.IsTokenValid(token, "asas@$$%89")}");
+            ReadKey();
         }
     }
 }
