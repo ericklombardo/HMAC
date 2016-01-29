@@ -6,6 +6,8 @@ namespace HMAC
     public static class SecurityManager
     {
         private const string Alg = "HmacSHA256";
+        //Replace with FormToken
+        private const string Salt = "rz8LuOtFBXphj9WQfvFh";
         private static readonly int _expirationMinutes = 10;
 
         /// <summary>
@@ -14,7 +16,7 @@ namespace HMAC
         /// The message is: username:timeStamp
         /// The resulting token is then concatenated with username:timeStamp and the result base64 encoded.
         /// </summary>
-        public static string GenerateToken(string username, string key, long ticks)
+        public static string GenerateToken(string username, string hashPassword, long ticks)
         {
             string hash = string.Join(":", username, ticks.ToString());
             string hashLeft;
@@ -22,7 +24,7 @@ namespace HMAC
 
             using (System.Security.Cryptography.HMAC hmac = System.Security.Cryptography.HMAC.Create(Alg))
             {
-                hmac.Key = Encoding.UTF8.GetBytes(key);
+                hmac.Key = Encoding.UTF8.GetBytes(hashPassword);
                 hmac.ComputeHash(Encoding.UTF8.GetBytes(hash));
 
                 hashLeft = Convert.ToBase64String(hmac.Hash);
@@ -36,9 +38,8 @@ namespace HMAC
         /// Checks if a token is valid.
         /// </summary>
         /// <param name="token">string - generated either by GenerateToken() or via client with cryptojs etc.</param>
-        /// <param name="formKey"></param>
         /// <returns>bool</returns>
-        public static bool IsTokenValid(string token, string formKey)
+        public static bool IsTokenValid(string token)
         {
             // Base64 decode the string, obtaining the token:username:timeStamp.
             string key = Encoding.UTF8.GetString(Convert.FromBase64String(token));
@@ -56,13 +57,33 @@ namespace HMAC
             bool expired = Math.Abs((DateTime.UtcNow - timeStamp).TotalMinutes) > _expirationMinutes;
             if (expired) return false;
             //
-            // Lookup the user's account from the db.
+            // Lookup the user's account from the db and get the hashPassword.
             //
             // Hash the message with the key to generate a token.
-            string computedToken = GenerateToken(username, formKey, ticks);
+            string hashPassword = GetDbPassword(username);
+            string computedToken = GenerateToken(username, hashPassword, ticks);
 
             // Compare the computed token with the one supplied and ensure they match.
             return (token == computedToken);
+        }
+
+        public static string GetHashedPassword(string password)
+        {
+            string key = string.Join(":", password, Salt);
+
+            using (System.Security.Cryptography.HMAC hmac = System.Security.Cryptography.HMAC.Create(Alg))
+            {
+                // Hash the key.
+                hmac.Key = Encoding.UTF8.GetBytes(Salt);
+                hmac.ComputeHash(Encoding.UTF8.GetBytes(key));
+
+                return Convert.ToBase64String(hmac.Hash);
+            }
+        }
+
+        public static string GetDbPassword(string userName)
+        {
+            return GetHashedPassword("password");
         }
     }
 }
